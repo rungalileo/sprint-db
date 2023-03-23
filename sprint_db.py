@@ -127,7 +127,7 @@ class SprintDashboard:
 
         ####
         tab1, tab2, tab3, tab4 = st.tabs(
-            ['Key Milestones', 'Milestone Timelines', 'Engineer Stories', 'Feature/Bugs Distributions']
+            ['Milestone Timelines', 'Milestones Details', 'Engineer Stories', 'Feature/Bug Distributions']
         )
 
         self.populate_tab_1(active_milestones, tab1)
@@ -297,7 +297,7 @@ class SprintDashboard:
     ):
         c1, c2 = st.columns((5, 5))
         with c1:
-            st.markdown('#### Features & Bugs: Key Milestones')
+            st.markdown('#### Key Milestone Stories')
             status_map = r.get_status_count(total_stories_in_sprint)
             status_map = {
                 'Status': status_map.keys(),
