@@ -31,7 +31,6 @@ class ApiRouter:
 
         self._base_url = 'https://api.app.shortcut.com/api'
         _token = os.getenv('SHORTCUT_API_TOKEN')
-        _token = '6417c35e-acd8-442f-9ec8-f02da50f8dac' if _token is None else _token
         self._shortcut_token = '?token=' + _token
         self._get_milestones_url = '/v3/milestones'
         self._get_epics_url = '/v3/epics'

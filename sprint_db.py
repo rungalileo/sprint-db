@@ -12,7 +12,7 @@ utils = Utils(r)
 
 class SprintDashboard:
     def __init__(self):
-        self._current_iteration = 'FFT'
+        self._current_iteration = None
         self.general_one_off_improvements_epic = 3079
         self.general_bugs_epic = 3078
 
