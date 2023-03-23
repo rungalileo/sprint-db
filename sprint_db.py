@@ -264,7 +264,7 @@ class SprintDashboard:
         st.markdown('### Galileo: Sprint Metrics')
         st.markdown("""---""")
         col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
-        col1.metric("Milestones", len(active_milestones))
+        col1.metric("Active Milestones", len(active_milestones))
         col2.metric("Milestone Stories", len(key_stories_in_sprint))
         ongoing_stories = []
         for milestone in active_milestones:
