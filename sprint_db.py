@@ -108,7 +108,7 @@ class SprintDashboard:
         all_gen_bugs_in_sprint = utils.filter_bugs(general_bugs_and_improvement_stories)
         all_gen_features_in_sprint = utils.filter_features(general_bugs_and_improvement_stories)
 
-        # all stories in this sprint
+        # Note: active_milestones does not include general bugs & improvements
         key_stories_in_sprint = []
         for milestone in active_milestones:
             key_stories_in_sprint.extend(
@@ -137,7 +137,7 @@ class SprintDashboard:
         self.populate_tab_3(active_milestones, all_gen_bugs_in_sprint, all_gen_features_in_sprint,
                             all_milestones_in_sprint, total_stories_in_sprint, tab3)
         self.populate_tab_4(all_bugs_in_sprint, all_features_in_sprint, all_gen_bugs_in_sprint,
-                            all_gen_features_in_sprint, total_stories_in_sprint, tab4)
+                            all_gen_features_in_sprint, total_stories_in_sprint, key_stories_in_sprint, tab4)
 
         # Create a container for the footer
         footer_container = st.container()
@@ -148,7 +148,7 @@ class SprintDashboard:
             st.write("<center>Built with ❤️ by Atin</center>", unsafe_allow_html=True)
 
     def populate_tab_4(self, all_bugs_in_sprint, all_features_in_sprint, all_gen_bugs_in_sprint,
-                       all_gen_features_in_sprint, total_stories_in_sprint, tab4):
+                       all_gen_features_in_sprint, total_stories_in_sprint, key_stories_in_sprint, tab4):
         with tab4:
             st.markdown('## Feature / Bugs Distributions')
 
@@ -194,7 +194,7 @@ class SprintDashboard:
             self.draw_feature_bug_distributions(
                 all_gen_bugs_in_sprint,
                 all_gen_features_in_sprint,
-                total_stories_in_sprint,
+                key_stories_in_sprint,
             )
 
     def populate_tab_3(self, active_milestones, all_gen_bugs_in_sprint, all_gen_features_in_sprint,
@@ -293,12 +293,12 @@ class SprintDashboard:
             self,
             all_gen_bugs_in_sprint,
             all_gen_features_in_sprint,
-            total_stories_in_sprint,
+            key_stories_in_sprint,
     ):
         c1, c2 = st.columns((5, 5))
         with c1:
             st.markdown('#### Key Milestone Stories')
-            status_map = r.get_status_count(total_stories_in_sprint)
+            status_map = r.get_status_count(key_stories_in_sprint)
             status_map = {
                 'Status': status_map.keys(),
                 'Stories': status_map.values()
