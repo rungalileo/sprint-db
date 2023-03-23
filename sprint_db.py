@@ -358,7 +358,7 @@ class SprintDashboard:
                 use_container_width=True,
             )
         st.markdown("""---""")
-        st.markdown('### Hot Sprint Epics')
+        st.markdown('### Active Sprint Epics')
         c1, c2, c3 = st.columns((2, 6, 2))
         with c2:
             # Grouped Bar of Features & Bugs - by Epics
@@ -386,7 +386,7 @@ class SprintDashboard:
                 col = 'red' if progress_percent > 80 else 'green'
                 st.markdown(f"<b>{milestone['name']}</b> (<font color='{col}'><b>{progress_percent}%</b></font> elapsed)", unsafe_allow_html=True)
             with y:
-                if progress_percent > 80:
+                if progress_percent >= 85:
                     st.markdown(f"""
                             <div style='background-color: #DBDBDB; height: 10px; border-radius: 5px;'>
                               <div style='background-color: #f44336; height: 10px; width: {progress_percent}%; border-radius: 5px;'></div>
