@@ -12,6 +12,11 @@ class Utils:
     def filter_all_but_unneeded_and_completed(self, story_list: List) -> List:
         return [e for e in story_list if e.get("unneeded", "") is not True and e.get("completed", "") is not True]
 
+    def filter_all_but_unneeded_and_completed_and_in_review(self, story_list: List) -> List:
+        return [e for e in story_list if
+                e.get("unneeded", "") is not True and e.get("completed", "") is not True and self.r.get_workflow(
+                    e['workflow_state_id']) != 'In Review']
+
     def filter_all_but_unneeded(self, story_list: List):
         return [e for e in story_list if e.get("unneeded", "") is not True]
 

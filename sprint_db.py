@@ -20,13 +20,13 @@ class SprintDashboard:
         with open('style.css') as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
-    def has_recently_ended(self, m):
+    def has_recently_ended(self, m: Dict) -> bool:
         if m['completed_at_override'] is None:
             return False
         end_date = datetime.fromisoformat(m['completed_at_override'].replace('Z', '+00:00')).date()
         return utils.within_last_n_weeks(end_date, n=10)
 
-    def get_story_completion_percentage(self, m):
+    def get_story_completion_percentage(self, m: Dict) -> float:
         epics = r.get_epics_for_milestone(m['id'])
         completed_stories = sum(
             [s['completed'] for e in epics for s in r.get_stories_for_epic(e['id']) if not s['archived']])
@@ -35,15 +35,15 @@ class SprintDashboard:
             return 0.0
         return completed_stories / total_stories * 100
 
-    def show_only_recently_finished(self, all_milestones):
-        ret_val = []
+    def show_only_recently_finished(self, all_milestones: List) -> List:
+        recently_finished_milestones = []
         for m in all_milestones:
             d = m.get('completed_at_override', None)
             if d is not None:
                 dt = datetime.fromisoformat(m.get('completed_at_override', '').replace('Z', '+00:00')).date()
                 if m.get('completed', '') is True and utils.within_last_n_weeks(dt, n=10):
-                    ret_val.append(m)
-        return ret_val
+                    recently_finished_milestones.append(m)
+        return recently_finished_milestones
 
     def show_sprint_stars(self, completed_stories_in_sprint: List[Dict]) -> List[str]:
         user_count_map: Dict[str, int] = {}
@@ -56,7 +56,7 @@ class SprintDashboard:
         stars = [f'<b>{key}</b>, for crushing {value} stories!' for key, value in user_count_map.items()]
         return stars[:5]
 
-    def get_epic_story_counts(self, all_active_epics):
+    def get_epic_story_counts(self, all_active_epics: List) -> Dict:
         bugs = {}
         features = {}
 
@@ -78,7 +78,7 @@ class SprintDashboard:
 
         return merged_dict
 
-    def get_state_distribution(self, total_stories_in_sprint):
+    def get_state_distribution(self, total_stories_in_sprint: List) -> Dict:
         workflow_names = {}
         for story in total_stories_in_sprint:
             workflow_id = story['workflow_state_id']
@@ -127,63 +127,28 @@ class SprintDashboard:
 
         ####
         tab1, tab2, tab3, tab4 = st.tabs(
-            ['Key Milestones', 'Milestone Timelines', 'Engineer Stories', 'Feature/Bugs Distributions'])
+            ['Key Milestones', 'Milestone Timelines', 'Engineer Stories', 'Feature/Bugs Distributions']
+        )
 
         self.populate_tab_1(active_milestones, tab1)
-
-        with tab2:
-            # Row B
-            c1, c2, c3 = st.columns((1, 8, 1))
-            with c2:
-                st.markdown("### Key Milestone")
-                df = pd.DataFrame(self.get_milestone_data_view(active_milestones))
-                df = df.style.format({'Milestone': self.make_clickable})
-                df.index += 1
-                table = df.to_html()
-                st.write(table, unsafe_allow_html=True)
-
-                st.markdown("""---""")
-                self.milestones_needing_attention(active_milestones)
-
+        self.populate_tab_2(active_milestones, tab2)
 
         total_stories_in_sprint = all_features_in_sprint + all_bugs_in_sprint
-        with tab3:
-            # Row C
-            current_iteration_stories = []
-            for milestone in active_milestones:
-                epics = utils.filter_all_but_unneeded(r.get_epics_for_milestone(milestone['id']))
-                for epic in epics:
-                    stories = utils.filter_all_but_unneeded(r.get_stories_for_epic(epic['id']))
-                    for story in stories:
-                        if story['iteration_id'] is not None and r.get_iteration_name_from_id(
-                                story['iteration_id']) == self._current_iteration:
-                            current_iteration_stories.append(story)
+        self.populate_tab_3(active_milestones, all_gen_bugs_in_sprint, all_gen_features_in_sprint,
+                            all_milestones_in_sprint, total_stories_in_sprint, tab3)
+        self.populate_tab_4(all_bugs_in_sprint, all_features_in_sprint, all_gen_bugs_in_sprint,
+                            all_gen_features_in_sprint, total_stories_in_sprint, tab4)
 
-            self.draw_ownership_count_charts(all_gen_bugs_in_sprint,
-                                             all_gen_features_in_sprint,
-                                             current_iteration_stories,
-                                             all_milestones_in_sprint)
+        # Create a container for the footer
+        footer_container = st.container()
 
-            st.markdown("""---""")
-            all_devs = r.get_all_members()
-            col1, col2, col3 = st.columns((4.5, 1, 4.5))
-            with col1:
-                st.markdown("### Member Stories")
-                all_devs = [s.strip() for s in all_devs]
-                team_member_name = st.selectbox('Team Member:', all_devs)
-                stories_df = pd.DataFrame(
-                    utils.filter_stories_by_member(total_stories_in_sprint, team_member_name)
-                )
-                stories_df = stories_df.style.format({'Story': self.make_clickable})
-                stories_df.index += 1
-                story_table = stories_df.to_html()
-                st.write(story_table, unsafe_allow_html=True)
-            with col3:
-                stars = self.show_sprint_stars(utils.filter_completed_and_in_review(total_stories_in_sprint))
-                st.markdown('### 🌮🌮 Sprint Tacos 🌮🌮')
-                for star in stars:
-                    st.write(star, unsafe_allow_html=True)
+        # Add your footer content to the container
+        with footer_container:
+            st.write("---")
+            st.write("<center>Built with ❤️ by Atin</center>", unsafe_allow_html=True)
 
+    def populate_tab_4(self, all_bugs_in_sprint, all_features_in_sprint, all_gen_bugs_in_sprint,
+                       all_gen_features_in_sprint, total_stories_in_sprint, tab4):
         with tab4:
             st.markdown('## Feature / Bugs Distributions')
 
@@ -232,15 +197,61 @@ class SprintDashboard:
                 total_stories_in_sprint,
             )
 
-        # Create a container for the footer
-        footer_container = st.container()
+    def populate_tab_3(self, active_milestones, all_gen_bugs_in_sprint, all_gen_features_in_sprint,
+                       all_milestones_in_sprint, total_stories_in_sprint, tab3):
+        with tab3:
+            # Row C
+            current_iteration_stories = []
+            for milestone in active_milestones:
+                epics = utils.filter_all_but_unneeded(r.get_epics_for_milestone(milestone['id']))
+                for epic in epics:
+                    stories = utils.filter_all_but_unneeded(r.get_stories_for_epic(epic['id']))
+                    for story in stories:
+                        if story['iteration_id'] is not None and r.get_iteration_name_from_id(
+                                story['iteration_id']) == self._current_iteration:
+                            current_iteration_stories.append(story)
 
-        # Add your footer content to the container
-        with footer_container:
-            st.write("---")
-            st.write("<center>Built with ❤️ by Atin</center>", unsafe_allow_html=True)
+            self.draw_ownership_count_charts(all_gen_bugs_in_sprint,
+                                             all_gen_features_in_sprint,
+                                             current_iteration_stories,
+                                             all_milestones_in_sprint)
 
-    def populate_tab_1(self, active_milestones, tab1):
+            st.markdown("""---""")
+            all_devs = r.get_all_members()
+            col1, col2, col3 = st.columns((4.5, 1, 4.5))
+            with col1:
+                st.markdown("### Member Stories")
+                all_devs = [s.strip() for s in all_devs]
+                team_member_name = st.selectbox('Team Member:', all_devs)
+                stories_df = pd.DataFrame(
+                    utils.filter_stories_by_member(utils.filter_non_archived(total_stories_in_sprint), team_member_name)
+                )
+                stories_df = stories_df.style.format({'Story': self.make_clickable})
+                stories_df.index += 1
+                story_table = stories_df.to_html()
+                st.write(story_table, unsafe_allow_html=True)
+            with col3:
+                stars = self.show_sprint_stars(utils.filter_completed_and_in_review(total_stories_in_sprint))
+                st.markdown('### 🌮🌮 Sprint Tacos 🌮🌮')
+                for star in stars:
+                    st.write(star, unsafe_allow_html=True)
+
+    def populate_tab_2(self, active_milestones, tab2):
+        with tab2:
+            # Row B
+            c1, c2, c3 = st.columns((1, 8, 1))
+            with c2:
+                st.markdown("### Key Milestone")
+                df = pd.DataFrame(self.get_milestone_data_view(active_milestones))
+                df = df.style.format({'Milestone': self.make_clickable})
+                df.index += 1
+                table = df.to_html()
+                st.write(table, unsafe_allow_html=True)
+
+                st.markdown("""---""")
+                self.milestones_needing_attention(active_milestones)
+
+    def populate_tab_1(self, active_milestones: List, tab1):
         with tab1:
             st.markdown('### Key Milestone Timelines')
             c1, c2 = st.columns((7, 3))
@@ -258,7 +269,7 @@ class SprintDashboard:
         ongoing_stories = []
         for milestone in active_milestones:
             ongoing_stories.extend(
-                utils.filter_all_but_unneeded_and_completed(
+                utils.filter_all_but_unneeded_and_completed_and_in_review(
                     r.get_all_stories_for_milestone(milestone['id'], sprint=self._current_iteration)
                 )
             )
