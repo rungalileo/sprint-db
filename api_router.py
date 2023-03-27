@@ -61,8 +61,8 @@ class ApiRouter:
         members_dict = dict()
         members = self.make_api_call(self._base_url + self._get_members_url)
         for member in members:
-            member_id = member['profile']['id']
-            member_name = member['profile']['name']
+            member_id = str(member['id'])
+            member_name = str(member['profile']['name'])
             members_dict[member_id] = member_name
         return members_dict
 
@@ -83,8 +83,12 @@ class ApiRouter:
     def get_workflow(self, workflow_id):
         return self._workflows_dict[workflow_id]
 
-    def get_members(self, member_id):
-        return self._members_dict[member_id]
+    def get_members(self, member_id: str) -> Any:
+        try:
+            return self._members_dict[member_id]
+        except KeyError as e:
+            print(e)
+            return None
 
     def get_all_sprints(self):
         if len(self._all_sprints) == 0:
@@ -205,3 +209,19 @@ class ApiRouter:
 
     def get_iteration_from_name(self, iteration_name):
         return self._iteration_map[iteration_name]
+
+    # given an Epic ID, get the epic name
+    def get_epic_name(self, epic_id) -> str:
+        url = self._base_url + self._get_epics_url + "/{}".format(epic_id)
+        epic = self.make_api_call(url)
+        return epic['name']
+
+    # get all epics for the current sprint. do not send 'Done' epics.
+    def get_all_epics_in_current_sprint(self):
+        epics = []
+        # if sprint is none, get all epics
+        # else get epics for the current sprint
+        milestones_in_sprint = self.get_milestones(active=True) + [self.get_special_milestones()[1]]
+        for milestone in milestones_in_sprint:
+            epics.extend(self.get_epics_for_milestone(milestone['id']))
+        return epics

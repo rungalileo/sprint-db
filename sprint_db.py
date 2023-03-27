@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 from api_router import ApiRouter
 from datetime import datetime, timezone
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from utils import Utils
 
 r = ApiRouter()
@@ -26,14 +26,17 @@ class SprintDashboard:
         end_date = datetime.fromisoformat(m['completed_at_override'].replace('Z', '+00:00')).date()
         return utils.within_last_n_weeks(end_date, n=10)
 
-    def get_story_completion_percentage(self, m: Dict) -> float:
+    def get_story_completion_percentage(self, m: Dict) -> Tuple:
         epics = r.get_epics_for_milestone(m['id'])
         completed_stories = sum(
             [s['completed'] for e in epics for s in r.get_stories_for_epic(e['id']) if not s['archived']])
+        in_review_stories = sum(
+            [r.get_workflow(s['workflow_state_id']) == 'In Review' for e in epics for s in
+             r.get_stories_for_epic(e['id']) if not s['archived']])
         total_stories = sum([not s['archived'] for e in epics for s in r.get_stories_for_epic(e['id'])])
         if total_stories == 0:
-            return 0.0
-        return completed_stories / total_stories * 100
+            return 0.0, 0.0
+        return completed_stories / total_stories * 100, in_review_stories / total_stories * 100
 
     def show_only_recently_finished(self, all_milestones: List) -> List:
         recently_finished_milestones = []
@@ -63,7 +66,8 @@ class SprintDashboard:
         # Loop through all epics
         for epic in all_active_epics:
             epic_name = epic.get('name', '')
-            for s in utils.filter_all_but_unneeded_and_completed(r.get_stories_for_epic(epic['id'], sprint=self._current_iteration)):
+            for s in utils.filter_all_but_unneeded_and_completed(
+                    r.get_stories_for_epic(epic['id'], sprint=self._current_iteration)):
                 if s.get('story_type', '') in ['feature', 'chore']:
                     features[epic_name] = features.setdefault(epic_name, 0) + 1
                 elif s.get('story_type', '') == 'bug':
@@ -100,44 +104,58 @@ class SprintDashboard:
     def create_dashboard(self):
         if 'iteration_name' in st.session_state:
             self._current_iteration = st.session_state['iteration_name']
+        key_milestones = list(r.get_milestones(active=True))
+        all_milestones = key_milestones + [r.get_special_milestones()[1]] # GBAI
+        gbai_stories = r.get_all_stories_for_milestone(milestone_id=3077, sprint=self._current_iteration)
+        general_bugs = utils.filter_bugs(gbai_stories)
+        general_features = utils.filter_features(gbai_stories)
 
-        active_milestones = list(r.get_milestones(active=True))
-        all_milestones_in_sprint = active_milestones + r.get_special_milestones()
-        general_bugs_and_improvement_stories = r.get_all_stories_for_milestone(milestone_id=3077,
-                                                                               sprint=self._current_iteration)
-        all_gen_bugs_in_sprint = utils.filter_bugs(general_bugs_and_improvement_stories)
-        all_gen_features_in_sprint = utils.filter_features(general_bugs_and_improvement_stories)
-
-        # Note: active_milestones does not include general bugs & improvements
-        key_stories_in_sprint = []
-        for milestone in active_milestones:
-            key_stories_in_sprint.extend(
+        key_stories = []
+        for milestone in key_milestones:
+            key_stories.extend(
                 r.get_all_stories_for_milestone(milestone['id'], sprint=self._current_iteration)
             )
-        all_bugs_in_sprint = utils.filter_bugs(key_stories_in_sprint)
-        all_features_in_sprint = utils.filter_features(key_stories_in_sprint)
 
-        all_bugs_in_sprint.extend(all_gen_bugs_in_sprint)
-        all_features_in_sprint.extend(all_gen_features_in_sprint)
+        key_bugs = utils.filter_bugs(key_stories)
+        key_features = utils.filter_features(key_stories)
 
-        self.populate_top_sprint_metrics(active_milestones, all_bugs_in_sprint, all_features_in_sprint,
-                                         all_gen_bugs_in_sprint, all_gen_features_in_sprint, key_stories_in_sprint)
+        all_bugs = key_bugs + general_bugs
+        all_features = key_features + general_features
+
+        self.populate_top_sprint_metrics(
+            key_milestones,
+            key_bugs,
+            key_features,
+            general_bugs,
+            general_features,
+            key_stories
+        )
 
         st.markdown("""---""")
 
-        ####
         tab1, tab2, tab3, tab4 = st.tabs(
             ['Milestone Timelines', 'Milestones Details', 'Engineer Stories', 'Feature/Bug Distributions']
         )
 
-        self.populate_tab_1(active_milestones, tab1)
-        self.populate_tab_2(active_milestones, tab2)
+        self.populate_tab_1(key_milestones, tab1)
+        self.populate_tab_2(key_milestones, tab2)
 
-        total_stories_in_sprint = all_features_in_sprint + all_bugs_in_sprint
-        self.populate_tab_3(active_milestones, all_gen_bugs_in_sprint, all_gen_features_in_sprint,
-                            all_milestones_in_sprint, total_stories_in_sprint, tab3)
-        self.populate_tab_4(all_bugs_in_sprint, all_features_in_sprint, all_gen_bugs_in_sprint,
-                            all_gen_features_in_sprint, total_stories_in_sprint, key_stories_in_sprint, tab4)
+        total_stories = key_bugs + key_features + general_bugs + general_features
+
+        # key_milestones: does not include general bugs & improvements
+        # all_milestones_in_sprint: includes all active milestones + general bugs & improvements milestone
+        # total_stories: includes all stories in "all_milestones_in_sprint"
+        self.populate_tab_3(
+            key_bugs,
+            key_features,
+            general_bugs,  # stories
+            general_features,  # stories
+            all_milestones,  # milestones
+            total_stories,  # integer
+            tab3
+        )
+        self.populate_tab_4(all_bugs, all_features, general_bugs,
+                            general_features, total_stories, key_stories, tab4)
 
         # Create a container for the footer
         footer_container = st.container()
@@ -147,22 +165,19 @@ class SprintDashboard:
             st.write("---")
             st.write("<center>Built with ❤️ by Atin</center>", unsafe_allow_html=True)
 
-    def populate_tab_4(self, all_bugs_in_sprint, all_features_in_sprint, all_gen_bugs_in_sprint,
-                       all_gen_features_in_sprint, total_stories_in_sprint, key_stories_in_sprint, tab4):
+    def populate_tab_4(self, all_bugs, all_features, all_gen_bugs,
+                       all_gen_features, total_stories, key_stories, tab4):
         with tab4:
             st.markdown('## Feature / Bugs Distributions')
-
             c1, c2, c3, c4, c5 = st.columns(5)
-
-            num_total_in_sprint = len(total_stories_in_sprint)
-            num_features_in_sprint = len(all_features_in_sprint)
-            num_bugs_in_sprint = len(all_bugs_in_sprint)
-
-            c1.metric("Total Stories", num_total_in_sprint)
-            c2.metric("Features %", round(num_features_in_sprint / num_total_in_sprint * 100), 1)
-            c3.metric("Bugs %", round(num_bugs_in_sprint / num_total_in_sprint * 100), 1)
-            c4.metric("Features Closed", len(utils.filter_completed(all_features_in_sprint)))
-            c5.metric("Bugs Squashed", len(utils.filter_completed(all_bugs_in_sprint)))
+            num_total = len(total_stories)
+            num_features = len(all_features)
+            num_bugs = len(all_bugs)
+            c1.metric("Total Stories", num_total)
+            c2.metric("Features %", round(num_features / num_total * 100), 1)
+            c3.metric("Bugs %", round(num_bugs / num_total * 100), 1)
+            c4.metric("Features Closed", len(utils.filter_completed_and_in_review(all_features)))
+            c5.metric("Bugs Squashed", len(utils.filter_completed_and_in_review(all_bugs)))
             st.markdown("""---""")
 
             # Row D
@@ -170,7 +185,7 @@ class SprintDashboard:
             # Row E
             col1, col2, col3 = st.columns((4.5, 1, 4.5))
             with col1:
-                story_state_distribution = self.get_state_distribution(total_stories_in_sprint)
+                story_state_distribution = self.get_state_distribution(total_stories)
                 status_map = {
                     'State': story_state_distribution.keys(),
                     'Stories': story_state_distribution.values()
@@ -183,7 +198,7 @@ class SprintDashboard:
                 )
             with col3:
                 st.markdown('### New Bugs/Features By Day')
-                date_tickets_map = self.show_new_bugs_features_filed_per_day(total_stories_in_sprint)
+                date_tickets_map = self.show_new_bugs_features_filed_per_day(total_stories)
                 plost.bar_chart(
                     data=pd.DataFrame(date_tickets_map),
                     bar='Dates',
@@ -192,29 +207,27 @@ class SprintDashboard:
                 )
             st.markdown("""---""")
             self.draw_feature_bug_distributions(
-                all_gen_bugs_in_sprint,
-                all_gen_features_in_sprint,
-                key_stories_in_sprint,
+                all_gen_bugs,
+                all_gen_features,
+                key_stories,
             )
 
-    def populate_tab_3(self, active_milestones, all_gen_bugs_in_sprint, all_gen_features_in_sprint,
-                       all_milestones_in_sprint, total_stories_in_sprint, tab3):
+    def populate_tab_3(self,
+                       key_bugs,
+                       key_features,
+                       general_bugs,
+                       general_features,
+                       all_milestones,
+                       total_stories,
+                       tab3):
+        # All stories in the current iteration
+        all_stories = key_bugs + key_features + general_bugs + general_features
         with tab3:
             # Row C
-            current_iteration_stories = []
-            for milestone in active_milestones:
-                epics = utils.filter_all_but_unneeded(r.get_epics_for_milestone(milestone['id']))
-                for epic in epics:
-                    stories = utils.filter_all_but_unneeded(r.get_stories_for_epic(epic['id']))
-                    for story in stories:
-                        if story['iteration_id'] is not None and r.get_iteration_name_from_id(
-                                story['iteration_id']) == self._current_iteration:
-                            current_iteration_stories.append(story)
-
-            self.draw_ownership_count_charts(all_gen_bugs_in_sprint,
-                                             all_gen_features_in_sprint,
-                                             current_iteration_stories,
-                                             all_milestones_in_sprint)
+            self.draw_ownership_count_charts(general_bugs,
+                                             general_features,
+                                             key_bugs + key_features,
+                                             all_milestones)
 
             st.markdown("""---""")
             all_devs = r.get_all_members()
@@ -223,82 +236,125 @@ class SprintDashboard:
                 st.markdown("### Member Stories")
                 all_devs = [s.strip() for s in all_devs]
                 team_member_name = st.selectbox('Team Member:', all_devs)
-                stories_df = pd.DataFrame(
-                    utils.filter_stories_by_member(utils.filter_non_archived(total_stories_in_sprint), team_member_name)
+                stories_by_member_df = pd.DataFrame(
+                    utils.filter_stories_by_member(
+                        utils.filter_non_archived(all_stories),
+                        team_member_name.strip()
+                    )
                 )
-                stories_df = stories_df.style.format({'Story': self.make_clickable})
-                stories_df.index += 1
-                story_table = stories_df.to_html()
-                st.write(story_table, unsafe_allow_html=True)
+                st.write(self.get_prettified_story_table(stories_by_member_df), unsafe_allow_html=True)
             with col3:
-                stars = self.show_sprint_stars(utils.filter_completed_and_in_review(total_stories_in_sprint))
+                stars = self.show_sprint_stars(utils.filter_completed_and_in_review(total_stories))
                 st.markdown('### 🌮🌮 Sprint Tacos 🌮🌮')
                 for star in stars:
                     st.write(star, unsafe_allow_html=True)
+            st.markdown("""---""")
+            _, col2, _ = st.columns((2, 6, 2))
+            with col2:
+                all_epics_in_sprint = utils.filter_all_but_done_epics(r.get_all_epics_in_current_sprint())
+                epic_names = set([e['name'] for e in all_epics_in_sprint])
+                st.markdown('### Active Epics')
+                epic_name = st.selectbox('Shows In Progress / Un-started Stories:', epic_names)
 
-    def populate_tab_2(self, active_milestones, tab2):
+                stories_by_epic = utils.filter_stories_by_epic(
+                    utils.filter_in_review_and_ready_for_development(total_stories),
+                    epic_name.strip()
+                )
+                stories_by_epic_df = pd.DataFrame(stories_by_epic)
+                st.write(self.get_prettified_story_table(stories_by_epic_df), unsafe_allow_html=True)
+
+    def get_prettified_story_table(self, stories_for_epic_df):
+        stories_for_epic_df = self.sort_by_date(stories_for_epic_df)
+        stories_for_epic_df.reset_index(drop=True, inplace=True)
+        stories_for_epic_df = stories_for_epic_df.style.format(
+            {'Story': self.make_clickable, 'State': self.color_green_completed})
+        story_table = stories_for_epic_df.to_html()
+        return story_table
+
+    def sort_by_date(self, stories_for_epic_df):
+        stories_for_epic_df['Temp_Date'] = pd.to_datetime(stories_for_epic_df['Created'])
+        stories_for_epic_df = stories_for_epic_df.sort_values(by='Temp_Date', ascending=False)
+        stories_for_epic_df = stories_for_epic_df.drop(columns="Temp_Date", axis=1)
+        return stories_for_epic_df
+
+    # Define a function to apply background color to cells
+    def color_green_completed(self, val):
+        if val == 'Ready for Development':
+            color = '#F8860D'
+        else:
+            color = '#3BB546' if val in {'Completed', 'In Review', 'In Development'} else '#000000'
+        return f"<font size='7px' color='{color}'><b>{val}</b></font>" if color != '#000000' else val
+
+    def populate_tab_2(self, key_milestones, tab2):
         with tab2:
             # Row B
             c1, c2, c3 = st.columns((1, 8, 1))
             with c2:
                 st.markdown("### Key Milestone")
-                df = pd.DataFrame(self.get_milestone_data_view(active_milestones))
-                df = df.style.format({'Milestone': self.make_clickable})
-                df.index += 1
+                df = pd.DataFrame(self.get_milestone_data_view(key_milestones))
+                df = df.style.format({'Milestone': self.make_clickable, 'State': self.color_green_completed})
                 table = df.to_html()
                 st.write(table, unsafe_allow_html=True)
-
                 st.markdown("""---""")
-                self.milestones_needing_attention(active_milestones)
+                self.milestones_needing_attention(key_milestones)
 
-    def populate_tab_1(self, active_milestones: List, tab1):
+    def populate_tab_1(self, key_milestones: List, tab1):
         with tab1:
             st.markdown('### Key Milestone Timelines')
             c1, c2 = st.columns((7, 3))
             with c1:
-                self.draw_eta_visualization(active_milestones)
+                self.draw_eta_visualization(key_milestones)
 
-    def populate_top_sprint_metrics(self, active_milestones, all_bugs_in_sprint, all_features_in_sprint,
-                                    all_gen_bugs_in_sprint, all_gen_features_in_sprint, key_stories_in_sprint):
-        # Row A
+    def populate_top_sprint_metrics(self, key_milestones, key_bugs, key_features,
+                                    general_bugs, general_features, key_stories):
+        general_stories = general_bugs + general_features
+        triage_key = utils.filter_triage(key_stories)
+        addressed_key = utils.filter_completed_and_in_review(key_stories)
+        triage_general = utils.filter_triage(general_bugs + general_features)
+        addressed_general = utils.filter_completed_and_in_review(general_bugs + general_features)
+
         st.markdown('### Galileo: Sprint Metrics')
+        completion_rate = utils.get_completion_rate(addressed_key + addressed_general, key_stories + general_stories)
+        st.write(f'Completion Rate: <b>{completion_rate}%</b>', unsafe_allow_html=True)
         st.markdown("""---""")
-        col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
-        col1.metric("Active Milestones", len(active_milestones))
-        col2.metric("Milestone Stories", len(key_stories_in_sprint))
-        ongoing_stories = []
-        for milestone in active_milestones:
-            ongoing_stories.extend(
-                utils.filter_all_but_unneeded_and_completed_and_in_review(
-                    r.get_all_stories_for_milestone(milestone['id'], sprint=self._current_iteration)
-                )
-            )
-        col3.metric("Milestone Stories Ongoing", len(ongoing_stories))
-        # Key completed stories: are stories that have been marked as completed in this Sprint
-        # loop through all active milestones - filter only completed stories for each milestone
-        key_addressed_stories = []
-        for milestone in active_milestones:
-            key_addressed_stories.extend(
-                utils.filter_completed_and_in_review(
-                    r.get_all_stories_for_milestone(milestone['id'], sprint=self._current_iteration)
-                )
-            )
 
-        col4.metric("Milestone Stories Addressed", len(key_addressed_stories))
-        col5.metric("General Bugs", len(all_gen_bugs_in_sprint))
-        col6.metric("General Improvements", len(all_gen_features_in_sprint))
-        col7.metric('Total Features/Total Bugs', '{}/{}'.format(len(all_features_in_sprint), len(all_bugs_in_sprint)))
+        # Row 1
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        col1.metric("Key Milestones", len(key_milestones))
+        col2.metric("Milestone Stories", len(key_stories))
+        col3.metric("General Stories", len(general_stories))
+        col4.metric("Total Stories", len(key_stories) + len(general_stories))
+        col5.metric("Total Bugs", len(key_bugs + general_bugs))
+        col6.metric("Total Features", len(key_features + general_features))
+
+        st.markdown("""---""")
+
+        # Row 2
+        col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(10)
+
+        col4.metric("Milestone Bugs", len(key_bugs))
+        col5.metric("Milestone Features", len(key_features))
+        col6.metric("Triage: Milestone Stories", len(triage_key))
+        col7.metric("Done: Milestone Stories", len(addressed_key))
+
+        # Row 3
+        col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(10)
+
+        col4.metric("General Bugs", len(general_bugs))
+        col5.metric("General Features", len(general_features))
+        col6.metric("Triage: General Stories", len(triage_general))
+        col7.metric("Done: General Stories", len(addressed_general))
 
     def draw_feature_bug_distributions(
             self,
-            all_gen_bugs_in_sprint,
-            all_gen_features_in_sprint,
-            key_stories_in_sprint,
+            general_bugs,
+            general_features,
+            key_stories,
     ):
         c1, c2 = st.columns((5, 5))
         with c1:
             st.markdown('#### Key Milestone Stories')
-            status_map = r.get_status_count(key_stories_in_sprint)
+            status_map = r.get_status_count(key_stories)
             status_map = {
                 'Status': status_map.keys(),
                 'Stories': status_map.values()
@@ -313,7 +369,7 @@ class SprintDashboard:
             st.markdown('#### General Bugs & Features')
             general_bug_features = {
                 'Type': ['Bugs', 'Features'],
-                'Count': [len(all_gen_bugs_in_sprint), len(all_gen_features_in_sprint)]
+                'Count': [len(general_bugs), len(general_features)]
             }
             plost.donut_chart(
                 data=pd.DataFrame(general_bug_features),
@@ -322,14 +378,14 @@ class SprintDashboard:
             )
 
     def draw_ownership_count_charts(self,
-                                    all_gen_bugs_in_sprint,
-                                    all_gen_features_in_sprint,
-                                    current_iteration_stories,
+                                    general_bugs,
+                                    general_features,
+                                    key_stories,
                                     all_active_milestones):
         c1, c2, c3 = st.columns((4.5, 1, 4.5))
         with c1:
             st.markdown('### Key Milestones Stories')
-            owner_map = r.get_owner_count(current_iteration_stories)
+            owner_map = r.get_owner_count(key_stories)
             plost.bar_chart(
                 data=pd.DataFrame(owner_map),
                 bar='Owner',
@@ -341,8 +397,8 @@ class SprintDashboard:
         with c3:
             # general bugs
             st.markdown('### General Bugs & Features')
-            general_bug_owners = r.get_owner_count(all_gen_bugs_in_sprint)
-            general_improvements_owners = r.get_owner_count(all_gen_features_in_sprint)
+            general_bug_owners = r.get_owner_count(general_bugs)
+            general_improvements_owners = r.get_owner_count(general_features)
 
             bug_owners_df = pd.DataFrame(general_bug_owners)
             improvement_owners_df = pd.DataFrame(general_improvements_owners)
@@ -384,7 +440,9 @@ class SprintDashboard:
             x, y = st.columns((6, 4))
             with x:
                 col = 'red' if progress_percent > 80 else 'green'
-                st.markdown(f"<b>{milestone['name']}</b> (<font color='{col}'><b>{progress_percent}%</b></font> elapsed)", unsafe_allow_html=True)
+                st.markdown(
+                    f"<b>{milestone['name']}</b> (<font color='{col}'><b>{progress_percent}%</b></font> elapsed)",
+                    unsafe_allow_html=True)
             with y:
                 if progress_percent >= 85:
                     st.markdown(f"""
@@ -407,16 +465,17 @@ class SprintDashboard:
         # milestones that have passed the dates,
         problematic_milestones = []
         problematic_completion_percent = []
+        problematic_in_review_percent = []
         all_milestones = list(r.get_milestones())
         for m in all_milestones:
-            cp = self.get_story_completion_percentage(m)
-            if m['id'] not in active_ms_set and self.has_recently_ended(m) and cp <= 95:
+            cp_tuple = self.get_story_completion_percentage(m)
+            if m['id'] not in active_ms_set and self.has_recently_ended(m) and cp_tuple[0] <= 95:
                 problematic_milestones.append(m)
-                problematic_completion_percent.append("{}%".format(str(round(cp, 2))))
+                problematic_completion_percent.append("{}%".format(str(round(cp_tuple[0], 2))))
+                problematic_in_review_percent.append("{}%".format(str(round(cp_tuple[1], 2))))
         # now we have the list of non active milestones
         pdf = pd.DataFrame(self.get_milestone_data_view(problematic_milestones))
-        pdf = pdf.style.format({'Milestone': self.make_clickable})
-        pdf.index += 1
+        pdf = pdf.style.format({'Milestone': self.make_clickable, 'State': self.color_green_completed})
         prb_html = pdf.to_html()
         st.write(prb_html, unsafe_allow_html=True)
 
@@ -433,6 +492,7 @@ class SprintDashboard:
         days_elapsed = []
         days_to_target = []
         problematic_completion_percent = []
+        problematic_in_review_percent = []
 
         for milestone in milestones:
             milestone_names.append(milestone['name'] + "###" + milestone['app_url'])
@@ -456,7 +516,8 @@ class SprintDashboard:
             if milestone['completed_at_override'] is not None:
                 completed_date = datetime.fromisoformat(milestone['completed_at_override'].replace('Z', '+00:00'))
                 target_completion_dates.append(completed_date.strftime('%B %d, %Y'))
-                days_to_target.append((completed_date.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).days + 1)
+                days_to_target.append(
+                    (completed_date.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).days + 1)
                 if started_date is not None:
                     period = datetime.now().replace(tzinfo=timezone.utc) - started_date
                     days_elapsed.append(period.days)
@@ -467,8 +528,9 @@ class SprintDashboard:
             if (started_date is None) or (started_date is None and completed_date is None):
                 days_elapsed.append(0)
 
-            cp = self.get_story_completion_percentage(milestone)
-            problematic_completion_percent.append("{}%".format(str(round(cp, 2))))
+            cp_tuple = self.get_story_completion_percentage(milestone)
+            problematic_completion_percent.append("{}%".format(str(round(cp_tuple[0], 2))))
+            problematic_in_review_percent.append("{}%".format(str(round(cp_tuple[1], 2))))
 
         days_elapsed = [int(d) for d in days_elapsed]
         data = {
@@ -479,7 +541,8 @@ class SprintDashboard:
             'Stories': num_stories,
             'Days Elapsed': days_elapsed,
             'Days Remaining': days_to_target,
-            'Completion': problematic_completion_percent
+            'Completed': problematic_completion_percent,
+            'In Review': problematic_in_review_percent,
         }
         return data
 
