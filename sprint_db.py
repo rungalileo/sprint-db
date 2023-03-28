@@ -332,18 +332,18 @@ class SprintDashboard:
         # Row 2
         col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(10)
 
-        col4.metric("Milestone Bugs", len(key_bugs))
-        col5.metric("Milestone Features", len(key_features))
-        col6.metric("Triage: Milestone Stories", len(triage_key))
-        col7.metric("Done: Milestone Stories", len(addressed_key))
+        col4.metric("M: Bugs", len(key_bugs))
+        col5.metric("M: Features", len(key_features))
+        col6.metric("M: Triage", len(triage_key))
+        col7.metric("M: Done", len(addressed_key))
 
         # Row 3
         col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(10)
 
-        col4.metric("General Bugs", len(general_bugs))
-        col5.metric("General Features", len(general_features))
-        col6.metric("Triage: General Stories", len(triage_general))
-        col7.metric("Done: General Stories", len(addressed_general))
+        col4.metric("G: Bugs", len(general_bugs))
+        col5.metric("G: Features", len(general_features))
+        col6.metric("G: Triage", len(triage_general))
+        col7.metric("G: Done", len(addressed_general))
 
     def draw_feature_bug_distributions(
             self,
