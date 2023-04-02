@@ -145,15 +145,15 @@ class Utils:
         iteration = self.r.get_iteration_from_name(iteration_name=sprint_name)
         sprint_start_date = datetime.fromisoformat(iteration.get('start_date', '').replace('Z', '+00:00'))
         sprint_end_date = datetime.fromisoformat(iteration.get('end_date', '').replace('Z', '+00:00'))
-        x = []
+        sprint_stories = []
         for s in stories:
             creation_date = datetime.fromisoformat(s.get('created_at', '').replace('Z', '+00:00'))
             creation_date = creation_date.replace(tzinfo=timezone.utc)
             sprint_start_date = sprint_start_date.replace(tzinfo=timezone.utc)
             sprint_end_date = sprint_end_date.replace(tzinfo=timezone.utc)
             if sprint_start_date <= creation_date <= sprint_end_date:
-                x.append(s)
-        return x
+                sprint_stories.append(s)
+        return sprint_stories
 
     @staticmethod
     def is_feature_or_chore(story):
@@ -172,3 +172,21 @@ class Utils:
         total = len(total_stories)
         total_addressed = len(addressed_stories)
         return round((total_addressed / total) * 100, 2)
+
+    def filter_active_epics(self, epics_list):
+        active_epics_list = []
+        # this returns all active milestones + GBAI
+        all_active_milestones = self.r.get_milestones(active=True)
+        for e in epics_list:
+            milestone_for_epic = self.r.get_milestone_from_epic_id(e['id'])
+            if milestone_for_epic in all_active_milestones:
+                active_epics_list.append(e)
+        return active_epics_list
+
+    @staticmethod
+    def get_post_deployment_date(end_date):
+        return end_date + timedelta(days=14)
+
+    @staticmethod
+    def get_dev_complete_date(end_date):
+        return end_date - timedelta(days=6)

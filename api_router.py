@@ -4,9 +4,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
-
 
 # Distribution of stories per Milestone within the Sprint
 # Distribution of stories per person
@@ -39,6 +38,7 @@ class ApiRouter:
         self._get_workflows_url = '/v3/workflows'
         self._get_iteration_with_id_url = '/v3/iterations/{}'
 
+        # 3073: No Projects Assigned, 3077: General Bugs & Improvements
         self._special_milestone_ids = {3073, 3077}
         self._all_milestones = dict()
         self._special_milestones = dict()
@@ -148,8 +148,7 @@ class ApiRouter:
 
         active_milestones = [m for m in milestones if m.get('started_at_override') and m.get('completed_at_override')
                              and datetime.strptime(m['started_at_override'],
-                                                   '%Y-%m-%dT%H:%M:%SZ').date() <= datetime.now().date() <= datetime.strptime(
-            m['completed_at_override'], '%Y-%m-%dT%H:%M:%SZ').date()]
+                                                   '%Y-%m-%dT%H:%M:%SZ').date() <= datetime.now().date() <= datetime.strptime(m['completed_at_override'], '%Y-%m-%dT%H:%M:%SZ').date()]
         return active_milestones
 
     def get_special_milestones(self) -> List:
