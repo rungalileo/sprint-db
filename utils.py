@@ -130,10 +130,12 @@ class Utils:
         state_list.append(self.r.get_workflow(story["workflow_state_id"]))
 
     def filter_recent_sprints(self, iterations: List) -> List:
+        # Not to include future sprints
         iteration_names = []
         for it in iterations:
             end_date = datetime.strptime(it['end_date'], "%Y-%m-%d").date()
-            if self.within_last_n_weeks(end_date):
+            start_date = datetime.strptime(it['start_date'], "%Y-%m-%d").date()
+            if self.within_last_n_weeks(end_date) and start_date <= datetime.now().date():
                 iteration_names.append((it['name'], end_date))
         return iteration_names
 
@@ -170,6 +172,8 @@ class Utils:
     @staticmethod
     def get_completion_rate(addressed_stories, total_stories):
         total = len(total_stories)
+        if total == 0:
+            return 0
         total_addressed = len(addressed_stories)
         return round((total_addressed / total) * 100, 2)
 

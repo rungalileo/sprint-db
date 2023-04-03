@@ -608,8 +608,6 @@ def main():
     sprints = r.get_all_sprints()
     recent_sprints = utils.filter_recent_sprints(sprints)
     sprints = [name for name, e_date in sorted(recent_sprints, key=lambda x: x[1], reverse=True)]
-    if sprints is None:
-        sprints = []
     st.sidebar.header('Sprint Dashboard')
     st.session_state['iteration_name'] = st.sidebar.selectbox('Sprint Name:', tuple(sprints))
     sdb.create_dashboard()
