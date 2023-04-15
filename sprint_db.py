@@ -588,7 +588,7 @@ class SprintDashboard:
         return data
 
     def new_bugs_features_grouped_by_day(self, stories):
-        stories = utils.filter_stories_by_sprint(stories, 'FFT')
+        stories = utils.filter_stories_by_sprint(stories, self._current_iteration)
         bugs = {}
         features = {}
         for s in stories:
