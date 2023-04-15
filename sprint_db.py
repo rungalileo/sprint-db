@@ -107,8 +107,6 @@ class SprintDashboard:
         key_milestones = list(r.get_milestones(active=True))
         all_milestones = key_milestones + [r.get_special_milestones()[1]]  # GBAI
         gbai_stories = r.get_all_stories_for_milestone(milestone_id=3077, sprint=self._current_iteration)
-        general_bugs = utils.filter_bugs(gbai_stories)
-        general_features = utils.filter_features(gbai_stories)
 
         key_stories = []
         for milestone in key_milestones:
@@ -116,8 +114,10 @@ class SprintDashboard:
                 r.get_all_stories_for_milestone(milestone['id'], sprint=self._current_iteration)
             )
 
-        key_bugs = utils.filter_bugs(key_stories)
-        key_features = utils.filter_features(key_stories)
+        general_bugs = utils.filter_bugs(utils.filter_all_but_unneeded(gbai_stories))
+        general_features = utils.filter_features(utils.filter_all_but_unneeded(gbai_stories))
+        key_bugs = utils.filter_bugs(utils.filter_all_but_unneeded(key_stories))
+        key_features = utils.filter_features(utils.filter_all_but_unneeded(key_stories))
 
         all_bugs = key_bugs + general_bugs
         all_features = key_features + general_features
@@ -224,7 +224,7 @@ class SprintDashboard:
                        total_stories,
                        tab3):
         # All stories in the current iteration
-        all_stories = key_bugs + key_features + general_bugs + general_features
+        all_stories_in_sprint = key_bugs + key_features + general_bugs + general_features
         with tab3:
             # Row C
             self.draw_ownership_count_charts(general_bugs,
@@ -241,13 +241,13 @@ class SprintDashboard:
                 team_member_name = st.selectbox('Team Member:', all_devs)
                 stories_by_member_df = pd.DataFrame(
                     utils.filter_stories_by_member(
-                        utils.filter_non_archived(all_stories),
+                        utils.filter_non_archived(all_stories_in_sprint),
                         team_member_name.strip()
                     )
                 )
                 st.write(self.get_prettified_story_table(stories_by_member_df), unsafe_allow_html=True)
             with col3:
-                stars = self.show_sprint_stars(utils.filter_completed_and_in_review(total_stories))
+                stars = self.show_sprint_stars(utils.filter_completed(total_stories))
                 st.markdown('### 🌮🌮 Sprint Tacos 🌮🌮')
                 for star in stars:
                     st.write(star, unsafe_allow_html=True)
@@ -314,6 +314,7 @@ class SprintDashboard:
     def populate_top_sprint_metrics(self, key_milestones, key_bugs, key_features,
                                     general_bugs, general_features, key_stories):
         general_stories = general_bugs + general_features
+        key_stories = key_bugs + key_features
         triage_key = utils.filter_triage(key_stories)
         addressed_key = utils.filter_completed_and_in_review(key_stories)
         triage_general = utils.filter_triage(general_bugs + general_features)
@@ -326,30 +327,31 @@ class SprintDashboard:
 
         # Row 1
         col1, col2, col3, col4, col5, col6 = st.columns(6)
-        col1.metric("Key Milestones", len(key_milestones))
-        col2.metric("Milestone Stories", len(key_stories))
-        col3.metric("General Stories", len(general_stories))
-        col4.metric("Total Stories", len(key_stories) + len(general_stories))
-        col5.metric("Total Bugs", len(key_bugs + general_bugs))
-        col6.metric("Total Features", len(key_features + general_features))
+        col2.metric("All Stories", len(key_stories) + len(general_stories))
+        col3.metric("Key Stories", len(key_stories))
+        col4.metric("General Stories", len(general_stories))
+        col5.metric("Features", len(key_features + general_features))
+        col6.metric("Bugs", len(key_bugs + general_bugs))
 
         st.markdown("""---""")
 
         # Row 2
         col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(10)
 
-        col4.metric("M: Bugs", len(key_bugs))
-        col5.metric("M: Features", len(key_features))
-        col6.metric("M: Triage", len(triage_key))
-        col7.metric("M: Done", len(addressed_key))
+        col4.metric("Key Features", len(key_features))
+        col5.metric("Key Bugs", len(key_bugs))
+        col6.metric("Key Features Done", len(utils.filter_completed_and_in_review(key_features)))
+        col7.metric("Key Bugs Done", len(utils.filter_completed_and_in_review(key_bugs)))
+        col8.metric("Key Triage", len(triage_key))
 
         # Row 3
         col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(10)
 
-        col4.metric("G: Bugs", len(general_bugs))
-        col5.metric("G: Features", len(general_features))
-        col6.metric("G: Triage", len(triage_general))
-        col7.metric("G: Done", len(addressed_general))
+        col4.metric("Gen Features", len(general_features))
+        col5.metric("Gen Bugs", len(general_bugs))
+        col6.metric("Gen Features Done", len(utils.filter_completed_and_in_review(general_features)))
+        col7.metric("Gen Bugs Done", len(utils.filter_completed_and_in_review(general_bugs)))
+        col8.metric("Gen Triage", len(triage_general))
 
     def draw_feature_bug_distributions(
             self,
@@ -503,7 +505,7 @@ class SprintDashboard:
                 problematic_milestones.append(m)
                 problematic_completion_percent.append("{}%".format(str(round(cp_tuple[0], 2))))
                 problematic_in_review_percent.append("{}%".format(str(round(cp_tuple[1], 2))))
-        # now we have the list of non active milestones
+        # list of non active milestones
         pdf = pd.DataFrame(self.get_milestone_data_view(problematic_milestones))
         return pdf
 
