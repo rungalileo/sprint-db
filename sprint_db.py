@@ -111,7 +111,7 @@ class SprintDashboard:
         key_stories = []
         for milestone in key_milestones:
             key_stories.extend(
-                r.get_all_stories_for_milestone(milestone['id'], sprint=self._current_iteration)
+                utils.filter_all_but_unneeded(r.get_all_stories_for_milestone(milestone['id'], sprint=self._current_iteration))
             )
 
         general_bugs = utils.filter_bugs(utils.filter_all_but_unneeded(gbai_stories))
@@ -140,7 +140,7 @@ class SprintDashboard:
         self.populate_tab_1(key_milestones, tab1)
         self.populate_tab_2(key_milestones, tab2)
 
-        total_stories = key_bugs + key_features + general_bugs + general_features
+        all_stories = key_bugs + key_features + general_bugs + general_features
 
         # key_milestones: does not include general bugs & improvements
         # all_milestones_in_sprint: includes all active milestones + general bugs & improvements milestone
@@ -151,11 +151,11 @@ class SprintDashboard:
             general_bugs,  # stories
             general_features,  # stories
             all_milestones,  # milestones
-            total_stories,  # integer
+            all_stories,  # integer
             tab3
         )
         self.populate_tab_4(all_bugs, all_features, general_bugs,
-                            general_features, total_stories, key_stories, tab4)
+                            general_features, all_stories, key_bugs, key_features, tab4)
 
         # Create a container for the footer
         footer_container = st.container()
@@ -165,8 +165,15 @@ class SprintDashboard:
             st.write("---")
             st.write("<center>Built with ❤️ by Atin</center>", unsafe_allow_html=True)
 
-    def populate_tab_4(self, all_bugs, all_features, all_gen_bugs,
-                       all_gen_features, total_stories, key_stories, tab4):
+    def populate_tab_4(self,
+                       all_bugs,
+                       all_features,
+                       gen_bugs,
+                       gen_features,
+                       total_stories,
+                       key_bugs,
+                       key_features,
+                       tab4):
         with tab4:
             st.markdown('## Feature / Bugs Distributions')
             c1, c2, c3, c4, c5 = st.columns(5)
@@ -210,9 +217,10 @@ class SprintDashboard:
                 )
             st.markdown("""---""")
             self.draw_feature_bug_distributions(
-                all_gen_bugs,
-                all_gen_features,
-                key_stories,
+                gen_bugs,
+                gen_features,
+                key_bugs,
+                key_features
             )
 
     def populate_tab_3(self,
@@ -362,13 +370,14 @@ class SprintDashboard:
             self,
             general_bugs,
             general_features,
-            key_stories,
+            key_bugs,
+            key_features
     ):
         c1, c2 = st.columns((5, 5))
         with c1:
             st.markdown('#### Key Milestone Stories')
             st.markdown('###### Includes Completed stories')
-            status_map = r.get_status_count(key_stories)
+            status_map = r.get_status_count(key_bugs + key_features)
             status_map = {
                 'Status': status_map.keys(),
                 'Stories': status_map.values()
