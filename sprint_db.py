@@ -289,6 +289,10 @@ class SprintDashboard:
             color = '#3BB546' if val in {'Completed', 'In Review', 'In Development'} else '#000000'
         return f"<font size='7px' color='{color}'><b>{val}</b></font>" if color != '#000000' else val
 
+    def color_red_negative_completed(self, val):
+        color = '#FF0000' if int(val) <= 0 else '#F8860D' if 1 <= int(val) <= 10 else '#3BB546'
+        return f"<font size='7px' color='{color}'><b>{val}</b></font>"
+
     def populate_tab_2(self, key_milestones, tab2):
         with tab2:
             # Row B
@@ -296,7 +300,8 @@ class SprintDashboard:
             with c2:
                 st.markdown("### Active Milestones")
                 df = pd.DataFrame(self.get_milestone_data_view(key_milestones))
-                df = df.style.format({'Milestone': self.make_clickable, 'State': self.color_green_completed})
+                df = df.style.format({'Milestone': self.make_clickable,
+                                      'Days Remaining': self.color_red_negative_completed})
                 table = df.to_html()
                 st.write(table, unsafe_allow_html=True)
                 st.markdown("""---""")
@@ -473,7 +478,7 @@ class SprintDashboard:
     def post_deployment_milestones(self, active_milestones):
         st.markdown('### Milestones in Post Deployment')
         df = self.get_past_milestones(active_milestones, n_weeks=2)
-        df = df.style.format({'Milestone': self.make_clickable, 'State': self.color_green_completed})
+        df = df.style.format({'Milestone': self.make_clickable, 'Days Remaining': self.color_red_negative_completed})
         df_html = df.to_html()
         st.write(df_html, unsafe_allow_html=True)
 
