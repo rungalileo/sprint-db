@@ -119,7 +119,8 @@ class ApiRouter:
 
         if sprint is not None:
             stories = [s for s in stories if
-                       s.get('iteration_id') and sprint == self.get_iteration_name_from_id(s['iteration_id'])]
+                       s.get('iteration_id') and sprint == self.get_iteration_name_from_id(
+                           s['iteration_id']) and not s.get('archived', '')]
 
         return stories
 
@@ -131,7 +132,7 @@ class ApiRouter:
         if sprint is not None:
             stories_list = [s for s in stories_list if
                             s['iteration_id'] is not None and sprint == self.get_iteration_name_from_id(
-                                s['iteration_id'])]
+                                s['iteration_id']) and not s.get('archived', '')]
         return stories_list
 
     def get_milestones(self, active=False):
