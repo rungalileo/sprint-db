@@ -137,7 +137,8 @@ class Utils:
         for it in iterations:
             end_date = datetime.strptime(it['end_date'], "%Y-%m-%d").date()
             start_date = datetime.strptime(it['start_date'], "%Y-%m-%d").date()
-            if self.within_last_n_weeks(end_date) and start_date <= datetime.now().date():
+            tomorrow = datetime.now() + timedelta(days=1)
+            if self.within_last_n_weeks(end_date) or start_date <= tomorrow.date():
                 iteration_names.append((it['name'], end_date))
         return iteration_names
 
