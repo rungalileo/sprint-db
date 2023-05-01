@@ -58,12 +58,13 @@ class Utils:
         return [s for s in stories if s.get('archived', False) is not True]
 
     def filter_stories_by_epic(self, stories: List, epic_name: str) -> Dict:
-        fields = ["Story", "Type", "Milestone", "Priority", "State", "Created", "Requested By", "Owner"]
+        fields = ["ID", "Story", "Type", "Milestone", "Priority", "State", "Created", "Requested By", "Owner"]
         fields_lists = [[] for _ in fields]
 
         for story in stories:
             if epic_name == self.r.get_epic_name(story["epic_id"]).strip():
                 self._populate_lists_for_story_dataframe(
+                    id_list=fields_lists[fields.index("ID")],
                     creation_date_list=fields_lists[fields.index("Created")],
                     milestone_name_list=fields_lists[fields.index("Milestone")],
                     priority_list=fields_lists[fields.index("Priority")],
@@ -81,14 +82,14 @@ class Utils:
         filtered_stories = [story for story in stories if
                             member_name in [self.r.get_owner_name(owner).replace("\\", "") for owner in
                                             story["owner_ids"] if self.r.get_owner_name(owner) is not None]]
-        data = {key: [] for key in ["Story", "Type", "Milestone", "Priority", "State", "Created", "Requested By"]}
+        data = {key: [] for key in ["ID", "Story", "Type", "Milestone", "Priority", "State", "Created", "Requested By"]}
         for story in filtered_stories:
-            self._populate_lists_for_story_dataframe(data["Created"], data["Milestone"], data["Priority"],
+            self._populate_lists_for_story_dataframe(data["ID"], data["Created"], data["Milestone"], data["Priority"],
                                                      data["State"], story, data["Story"], data["Type"],
                                                      data["Requested By"])
         return data
 
-    def _populate_lists_for_story_dataframe(self, creation_date_list, milestone_name_list, priority_list, state_list,
+    def _populate_lists_for_story_dataframe(self, id_list, creation_date_list, milestone_name_list, priority_list, state_list,
                                             story, story_list, story_type_list, requester_names, assignee_names=None):
         if assignee_names is None:
             assignee_names = list()
@@ -96,6 +97,7 @@ class Utils:
         m = self.r.get_milestone_from_story(story)
         if m is not None:
             milestone_name = m["name"]
+        id_list.append(f"{story['id']}")
         story_list.append(f"{story['name']}###{story['app_url']}")
         milestone_name_list.append(milestone_name)
         story_type_list.append(story["story_type"])
@@ -140,8 +142,9 @@ class Utils:
         return iteration_names
 
     def within_last_n_weeks(self, dt: datetime.date, n=8) -> bool:
-        eight_weeks_ago = datetime.now() - timedelta(weeks=n)
-        return dt >= eight_weeks_ago.date()
+        n_weeks_ago = datetime.now() - timedelta(weeks=n)
+        # dt is between now() and n_weeks_ago.date
+        return datetime.now().date() >= dt >= n_weeks_ago.date()
 
     def filter_stories_by_sprint(self, stories, sprint_name):
         iteration = self.r.get_iteration_from_name(iteration_name=sprint_name)

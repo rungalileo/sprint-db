@@ -276,6 +276,7 @@ class SprintDashboard:
                 st.write(self.get_prettified_story_table(stories_by_epic_df), unsafe_allow_html=True)
 
     def get_prettified_story_table(self, stories_for_epic_df):
+        # TODO: Replace ID column with the Story ID
         stories_for_epic_df = self.sort_by_date(stories_for_epic_df)
         stories_for_epic_df.reset_index(drop=True, inplace=True)
         stories_for_epic_df = stories_for_epic_df.style.format(
@@ -307,6 +308,7 @@ class SprintDashboard:
             c1, c2, c3 = st.columns((1, 8, 1))
             with c2:
                 st.markdown("### Active Milestones")
+                st.markdown("The <b>Days Remaining</b> below signifies the days to <b>launch to Sandbox</b>.", unsafe_allow_html=True)
                 df = pd.DataFrame(self.get_milestone_data_view(key_milestones))
                 df = df.style.format({'Milestone': self.make_clickable,
                                       'Days Remaining': self.color_red_negative_completed})
@@ -486,6 +488,8 @@ class SprintDashboard:
 
     def post_deployment_milestones(self, active_milestones):
         st.markdown('### Milestones in Post Deployment')
+        st.markdown('By now, these <b>should be in Sandbox</b>, <b>launched to customers</b>, '
+                    'in the phase of fixing bugs arising via customer usage.', unsafe_allow_html=True)
         df = self.get_past_milestones(active_milestones, n_weeks=2)
         df = df.style.format({'Milestone': self.make_clickable, 'Days Remaining': self.color_red_negative_completed})
         df_html = df.to_html()
