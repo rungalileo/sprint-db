@@ -19,14 +19,14 @@ from typing import List, Dict, Optional, Any
 class ApiRouter:
     def __init__(self):
         self._calls_made = 0
-        _retry_strategy = Retry(
-            total=3,
-            status_forcelist=[429, 500, 502, 503, 504],
-            method_whitelist=["GET"],
-            backoff_factor=1
-        )
+        # _retry_strategy = Retry(
+        #     total=3,
+        #     status_forcelist=[429, 500, 502, 503, 504],
+        #     method_whitelist=["GET"],
+        #     backoff_factor=1
+        # )
         self.session = requests.Session()
-        self.session.mount("https://", HTTPAdapter(max_retries=_retry_strategy))
+        # self.session.mount("https://", HTTPAdapter(max_retries=_retry_strategy))
 
         self._base_url = 'https://api.app.shortcut.com/api'
         _token = os.getenv('SHORTCUT_API_TOKEN')
