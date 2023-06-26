@@ -417,9 +417,10 @@ class SprintDashboard:
             plost.bar_chart(
                 data=pd.DataFrame(owner_map),
                 bar='Owner',
+                direction='horizontal',
                 value='Stories',
                 color='#e28743',
-                height=600,
+                height=400,
                 use_container_width=True,
             )
         with c3:
@@ -438,8 +439,9 @@ class SprintDashboard:
             plost.bar_chart(
                 data=merged_df,
                 bar='Owner',
+                direction='horizontal',
                 value=['Bugs', 'Features'],
-                height=600,
+                height=400,
                 use_container_width=True,
             )
         st.markdown("""---""")
@@ -455,6 +457,7 @@ class SprintDashboard:
             plost.bar_chart(
                 data=pd.DataFrame(epic_story_count_map),
                 bar='name',
+                direction='horizontal',
                 value=['bugs', 'features'],
                 height=600,
                 use_container_width=True,
