@@ -116,6 +116,7 @@ class SprintDashboard:
 
         general_bugs = utils.filter_bugs(utils.filter_all_but_unneeded(gbai_stories))
         general_features = utils.filter_features(utils.filter_all_but_unneeded(gbai_stories))
+
         key_bugs = utils.filter_bugs(utils.filter_all_but_unneeded(key_stories))
         key_features = utils.filter_features(utils.filter_all_but_unneeded(key_stories))
 
@@ -490,7 +491,7 @@ class SprintDashboard:
         st.markdown('### Milestones in Post Deployment')
         st.markdown('By now, these <b>should be in Sandbox</b>, <b>launched to customers</b>, '
                     'in the phase of fixing bugs arising via customer usage.', unsafe_allow_html=True)
-        df = self.get_past_milestones(active_milestones, n_weeks=2)
+        df = self.get_past_milestones(active_milestones, n_weeks=6)
         df = df.style.format({'Milestone': self.make_clickable, 'Days Remaining': self.color_red_negative_completed})
         df_html = df.to_html()
         st.write(df_html, unsafe_allow_html=True)
@@ -498,7 +499,7 @@ class SprintDashboard:
     def milestones_needing_attention(self, active_milestones):
         st.markdown('### Milestones Needing Attention')
         df1 = self.get_past_milestones(active_milestones, n_weeks=10)
-        df2 = self.get_past_milestones(active_milestones, n_weeks=2)
+        df2 = self.get_past_milestones(active_milestones, n_weeks=6)
         # merge the two dataframes on all columns
         merged = df1.merge(df2, how='outer', indicator=True)
         # filter the rows that are only in df1
