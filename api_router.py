@@ -147,9 +147,13 @@ class ApiRouter:
         if not active:
             return milestones
 
-        active_milestones = [m for m in milestones if m.get('started_at_override') and m.get('completed_at_override')
-                             and datetime.strptime(m['started_at_override'],
-                                                   '%Y-%m-%dT%H:%M:%SZ').date() <= datetime.now().date() <= datetime.strptime(m['completed_at_override'], '%Y-%m-%dT%H:%M:%SZ').date()]
+        active_milestones = [m for m in milestones
+                             if m.get('started_at_override')
+                             and m.get('completed_at_override')
+                             and datetime.strptime(m['started_at_override'], '%Y-%m-%dT%H:%M:%SZ').date() <=
+                             datetime.now().date() <=
+                             datetime.strptime(m['completed_at_override'], '%Y-%m-%dT%H:%M:%SZ').date()
+                             ]
         return active_milestones
 
     def get_special_milestones(self) -> List:

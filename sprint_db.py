@@ -15,6 +15,8 @@ class SprintDashboard:
         self._current_iteration = None
         self.general_one_off_improvements_epic = 3079
         self.general_bugs_epic = 3078
+        self.N_WEEKS_POST_DEPLOYMENT = 6
+        self.N_WEEKS_NEEDS_ATTENTION = 10
 
         st.set_page_config(layout='wide', initial_sidebar_state='expanded')
         with open('style.css') as f:
@@ -24,7 +26,8 @@ class SprintDashboard:
         if m['completed_at_override'] is None:
             return False
         end_date = datetime.fromisoformat(m['completed_at_override'].replace('Z', '+00:00')).date()
-        return utils.within_last_n_weeks(end_date, n=n_weeks)
+        self.weeks = utils.within_last_n_weeks(end_date, n=n_weeks)
+        return self.weeks
 
     def get_story_completion_percentage(self, m: Dict) -> Tuple:
         epics = r.get_epics_for_milestone(m['id'])
@@ -105,11 +108,16 @@ class SprintDashboard:
         if 'iteration_name' in st.session_state:
             self._current_iteration = st.session_state['iteration_name']
         key_milestones = list(r.get_milestones(active=True))
+        # Milestones in the 6-week time window
+        post_deployment_milestones = [x for x in r.get_milestones() if
+                                      self.has_ended_in_last_N_weeks(x, n_weeks=self.N_WEEKS_POST_DEPLOYMENT)]
+        # "extended" means it includes the active milestones and the post deployment milestones
+        key_milestones_extended = key_milestones + post_deployment_milestones
         all_milestones = key_milestones + [r.get_special_milestones()[1]]  # GBAI
         gbai_stories = r.get_all_stories_for_milestone(milestone_id=3077, sprint=self._current_iteration)
 
         key_stories = []
-        for milestone in key_milestones:
+        for milestone in key_milestones_extended:
             key_stories.extend(
                 utils.filter_all_but_unneeded(r.get_all_stories_for_milestone(milestone['id'], sprint=self._current_iteration))
             )
@@ -124,7 +132,7 @@ class SprintDashboard:
         all_features = key_features + general_features
 
         self.populate_top_sprint_metrics(
-            key_milestones,
+            key_milestones_extended,
             key_bugs,
             key_features,
             general_bugs,
@@ -138,7 +146,7 @@ class SprintDashboard:
             ['Milestone Timelines', 'Milestones Details', 'Engineer Stories', 'Feature/Bug Distributions']
         )
 
-        self.populate_tab_1(key_milestones, tab1)
+        self.populate_tab_1(key_milestones_extended, tab1)
         self.populate_tab_2(key_milestones, tab2)
 
         all_stories = key_bugs + key_features + general_bugs + general_features
@@ -155,8 +163,14 @@ class SprintDashboard:
             all_stories,  # integer
             tab3
         )
-        self.populate_tab_4(all_bugs, all_features, general_bugs,
-                            general_features, all_stories, key_bugs, key_features, tab4)
+        self.populate_tab_4(all_bugs,
+                            all_features,
+                            general_bugs,
+                            general_features,
+                            all_stories,
+                            key_bugs,
+                            key_features,
+                            tab4)
 
         # Create a container for the footer
         footer_container = st.container()
@@ -494,15 +508,15 @@ class SprintDashboard:
         st.markdown('### Milestones in Post Deployment')
         st.markdown('By now, these <b>should be in Sandbox</b>, <b>launched to customers</b>, '
                     'in the phase of fixing bugs arising via customer usage.', unsafe_allow_html=True)
-        df = self.get_past_milestones(active_milestones, n_weeks=6)
+        df = self.get_past_milestones(active_milestones, n_weeks=self.N_WEEKS_POST_DEPLOYMENT)
         df = df.style.format({'Milestone': self.make_clickable, 'Days Remaining': self.color_red_negative_completed})
         df_html = df.to_html()
         st.write(df_html, unsafe_allow_html=True)
 
     def milestones_needing_attention(self, active_milestones):
         st.markdown('### Milestones Needing Attention')
-        df1 = self.get_past_milestones(active_milestones, n_weeks=10)
-        df2 = self.get_past_milestones(active_milestones, n_weeks=6)
+        df1 = self.get_past_milestones(active_milestones, n_weeks=self.N_WEEKS_NEEDS_ATTENTION)
+        df2 = self.get_past_milestones(active_milestones, n_weeks=self.N_WEEKS_POST_DEPLOYMENT)
         # merge the two dataframes on all columns
         merged = df1.merge(df2, how='outer', indicator=True)
         # filter the rows that are only in df1
