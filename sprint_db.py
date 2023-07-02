@@ -16,7 +16,7 @@ class SprintDashboard:
         self.general_one_off_improvements_epic = 3079
         self.general_bugs_epic = 3078
         self.N_WEEKS_POST_DEPLOYMENT = 6
-        self.N_WEEKS_NEEDS_ATTENTION = 10
+        self.N_WEEKS_NEEDS_ATTENTION = 15
 
         st.set_page_config(layout='wide', initial_sidebar_state='expanded')
         with open('style.css') as f:
@@ -491,7 +491,13 @@ class SprintDashboard:
                     f"<b>{milestone['name']}</b> (<font color='{col}'><b>{progress_percent}%</b></font> elapsed)",
                     unsafe_allow_html=True)
             with y:
-                if progress_percent >= 85:
+                if progress_percent >= 120:
+                    st.markdown(f"""
+                            <div style='background-color: #DBDBDB; height: 10px; border-radius: 5px;'>
+                                <div style='background-color: #4c0105; height: 10px; width: {progress_percent}%; border-radius: 5px;'></div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                elif progress_percent >= 85:
                     st.markdown(f"""
                             <div style='background-color: #DBDBDB; height: 10px; border-radius: 5px;'>
                               <div style='background-color: #f44336; height: 10px; width: {progress_percent}%; border-radius: 5px;'></div>
@@ -506,8 +512,9 @@ class SprintDashboard:
 
     def post_deployment_milestones(self, active_milestones):
         st.markdown('### Milestones in Post Deployment')
-        st.markdown('By now, these <b>should be in Sandbox</b>, <b>launched to customers</b>, '
-                    'in the phase of fixing bugs arising via customer usage.', unsafe_allow_html=True)
+        st.markdown(f'<b>Should be in Sandbox</b>, <b>launched to customers</b>, '
+                    f'in the {self.N_WEEKS_POST_DEPLOYMENT}-week phase of fixing bugs arising via customer usage.',
+                    unsafe_allow_html=True)
         df = self.get_past_milestones(active_milestones, n_weeks=self.N_WEEKS_POST_DEPLOYMENT)
         df = df.style.format({'Milestone': self.make_clickable, 'Days Remaining': self.color_red_negative_completed})
         df_html = df.to_html()
@@ -515,6 +522,8 @@ class SprintDashboard:
 
     def milestones_needing_attention(self, active_milestones):
         st.markdown('### Milestones Needing Attention')
+        st.markdown(f'<b>Concern Zone</b>: Between {self.N_WEEKS_POST_DEPLOYMENT} and {self.N_WEEKS_NEEDS_ATTENTION} weeks '
+                    'from Sandbox/Customer Launch', unsafe_allow_html=True)
         df1 = self.get_past_milestones(active_milestones, n_weeks=self.N_WEEKS_NEEDS_ATTENTION)
         df2 = self.get_past_milestones(active_milestones, n_weeks=self.N_WEEKS_POST_DEPLOYMENT)
         # merge the two dataframes on all columns

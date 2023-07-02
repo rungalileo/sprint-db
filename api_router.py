@@ -1,10 +1,8 @@
 import os
 import sys
 import requests
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Dict, Optional, Any
 
 # Distribution of stories per Milestone within the Sprint
@@ -139,7 +137,7 @@ class ApiRouter:
         if len(self._all_milestones) == 0:
             # Lazy call
             milestones = self.make_api_call(self._base_url + self._get_milestones_url)
-            self._all_milestones.update({m['id']: m for m in milestones if m['id'] not in self._special_milestone_ids})
+            self._all_milestones.update({m['id']: m for m in milestones if m['id'] not in self._special_milestone_ids and m.get('completed') is False})
             self._special_milestones.update({m['id']: m for m in milestones if m['id'] in self._special_milestone_ids})
 
         milestones = self._all_milestones.values()
