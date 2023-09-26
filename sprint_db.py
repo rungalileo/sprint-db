@@ -355,33 +355,36 @@ class SprintDashboard:
         st.write(f'Completion Rate: <b>{completion_rate}%</b>', unsafe_allow_html=True)
         st.markdown("""---""")
 
+        key_stories_complete = len(utils.filter_completed_and_in_review(key_features))
+        key_bugs_complete = len(utils.filter_completed_and_in_review(key_bugs))
+        general_features_complete = len(utils.filter_completed_and_in_review(general_features))
+        general_bugs_complete = len(utils.filter_completed_and_in_review(general_bugs))
+
         # Row 1
-        col1, col2, col3, col4, col5, col6 = st.columns(6)
-        col2.metric("All Stories", len(key_stories) + len(general_stories))
-        col3.metric("Key Stories", len(key_stories))
-        col4.metric("General Stories", len(general_stories))
-        col5.metric("Features", len(key_features + general_features))
-        col6.metric("Bugs", len(key_bugs + general_bugs))
+        col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
+        total_stories = len(key_stories) + len(general_stories)
+        done_stories = key_stories_complete + key_bugs_complete + general_features_complete + general_bugs_complete
+        col3.metric("Total", total_stories)
+        col4.metric("Done", done_stories)
+        col5.metric("Remaining", total_stories - done_stories)
 
         st.markdown("""---""")
 
         # Row 2
-        col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(10)
+        col1, col2, col3, col4, col5, col6, col7, col8 = st.columns(8)
 
-        col4.metric("Key Features", len(key_features))
-        col5.metric("Key Bugs", len(key_bugs))
-        col6.metric("Key Features Done", len(utils.filter_completed_and_in_review(key_features)))
-        col7.metric("Key Bugs Done", len(utils.filter_completed_and_in_review(key_bugs)))
-        col8.metric("Key Triage", len(triage_key))
+        col3.metric("Key Total", len(key_stories))
+        col4.metric("Key Done", key_stories_complete + key_bugs_complete)
+        col5.metric("Key Remaining", len(key_stories) - (key_stories_complete + key_bugs_complete))
+        col6.metric("Key Stories In Triage", len(triage_key))
 
         # Row 3
-        col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns(10)
+        col1, col2, col3, col4, col5, col6, col7, col8 = st.columns(8)
 
-        col4.metric("Gen Features", len(general_features))
-        col5.metric("Gen Bugs", len(general_bugs))
-        col6.metric("Gen Features Done", len(utils.filter_completed_and_in_review(general_features)))
-        col7.metric("Gen Bugs Done", len(utils.filter_completed_and_in_review(general_bugs)))
-        col8.metric("Gen Triage", len(triage_general))
+        col3.metric("Gen Total", len(general_stories))
+        col4.metric("Gen Done", general_features_complete + general_bugs_complete)
+        col5.metric("Gen Remaining", len(general_stories) - (general_features_complete + general_bugs_complete))
+        col6.metric("Gen Stories In Triage", len(triage_general))
 
     def draw_feature_bug_distributions(
             self,
