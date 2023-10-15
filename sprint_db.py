@@ -262,12 +262,13 @@ class SprintDashboard:
                 st.markdown("### Member Stories")
                 all_devs = [s.strip() for s in all_devs]
                 team_member_name = st.selectbox('Team Member:', all_devs)
-                stories_by_member_df = pd.DataFrame(
-                    utils.filter_stories_by_member(
-                        utils.filter_non_archived(all_stories_in_sprint),
-                        team_member_name.strip()
-                    )
+                stories_by_member = utils.filter_stories_by_member(
+                    utils.filter_non_archived(all_stories_in_sprint),
+                    team_member_name.strip()
                 )
+                llm_member_summary = utils.get_llm_summary_per_member(stories_by_member, team_member_name)
+                stories_by_member_df = pd.DataFrame(stories_by_member)
+                st.write(llm_member_summary)
                 st.write(self.get_prettified_story_table(stories_by_member_df), unsafe_allow_html=True)
             with col3:
                 stars = self.show_sprint_stars(utils.filter_completed(total_stories))

@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from api_router import ApiRouter
+import os
+import openai
 
 
 class Utils:
@@ -8,6 +10,7 @@ class Utils:
     def __init__(self, r: ApiRouter):
         self.r = r
         self._priority_field_id = '62f6c112-35ed-4b29-9e07-dd16975ba823'
+        self.openai_api_key = os.getenv('OPENAI_API_KEY')
 
     def filter_all_but_unneeded_and_completed(self, story_list: List) -> List:
         return [e for e in story_list if e.get("unneeded", "") is not True and e.get("completed", "") is not True]
@@ -89,7 +92,8 @@ class Utils:
                                                      data["Requested By"])
         return data
 
-    def _populate_lists_for_story_dataframe(self, id_list, creation_date_list, milestone_name_list, priority_list, state_list,
+    def _populate_lists_for_story_dataframe(self, id_list, creation_date_list, milestone_name_list, priority_list,
+                                            state_list,
                                             story, story_list, story_type_list, requester_names, assignee_names=None):
         if assignee_names is None:
             assignee_names = list()
@@ -198,3 +202,30 @@ class Utils:
     @staticmethod
     def get_dev_complete_date(end_date):
         return end_date - timedelta(days=6)
+
+    def get_llm_summary_per_member(self, stories_by_member, team_member_name):
+        print(stories_by_member)
+        contatenated_story_titles = ""
+        for story_id, story_title in zip(stories_by_member['ID'], stories_by_member['Story']):
+            story_title = story_title.split("###")[0]
+            contatenated_story_titles += story_title + "."
+            # Get the full content of the story from the ID
+
+        openai.api_key = self.openai_api_key
+        prompt = f"""
+            Below is the work that Galileo's team member {team_member_name} is doing. It is formatted in JSON:
+            {{
+                "name": "{team_member_name}",
+                "work": "{contatenated_story_titles}"
+            }}
+            Provide a summary of not more than 5 lines of what he or she is working on. 
+            Mention their names in the summary.
+        """
+        messages = [
+            {"role": "system", "content": prompt},
+        ]
+        chat = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo", messages=messages
+        )
+        summary = chat.choices[0].message.content
+        return summary
