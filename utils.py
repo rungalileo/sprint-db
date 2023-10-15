@@ -242,7 +242,7 @@ class Utils:
             }}
             Provide a summary of no more than 5 lines of what he or she is working on.
             Avoid details that are too technical, ensure the summary is something that a 
-            non technical CEO or an executive can understand. 
+            non technical CEO or an executive can understand. If work is empty, say their work is not being tracked. 
         """
         messages = [
             {"role": "system", "content": prompt},
