@@ -204,7 +204,6 @@ class Utils:
         return end_date - timedelta(days=6)
 
     def get_llm_summary_per_member(self, stories_by_member, team_member_name):
-        print(stories_by_member)
         contatenated_story_titles = ""
         for story_id, story_title in zip(stories_by_member['ID'], stories_by_member['Story']):
             story_title = story_title.split("###")[0]

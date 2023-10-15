@@ -267,8 +267,8 @@ class SprintDashboard:
                     team_member_name.strip()
                 )
                 llm_member_summary = utils.get_llm_summary_per_member(stories_by_member, team_member_name)
-                stories_by_member_df = pd.DataFrame(stories_by_member)
                 st.write(llm_member_summary)
+                stories_by_member_df = pd.DataFrame(stories_by_member)
                 st.write(self.get_prettified_story_table(stories_by_member_df), unsafe_allow_html=True)
             with col3:
                 stars = self.show_sprint_stars(utils.filter_completed(total_stories))

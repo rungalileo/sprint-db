@@ -56,12 +56,12 @@ class ApiRouter:
         return workflows_dict
 
     def _create_members_map(self):
-        members_dict = dict()
         members = self.make_api_call(self._base_url + self._get_members_url)
-        for member in members:
-            member_id = str(member['id'])
-            member_name = str(member['profile']['name'])
-            members_dict[member_id] = member_name
+        members_dict = {
+            str(member['id']): str(member['profile']['name'])
+            for member in members
+            if member['state'] != "disabled"
+        }
         return members_dict
 
     def make_api_call(self, url):
