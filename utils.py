@@ -224,12 +224,15 @@ class Utils:
 
         openai.api_key = self.openai_api_key
         prompt = f"""
-            Below is the work that Galileo's team member {team_member_name} is doing. It is formatted in JSON:
+            Below is the work that Galileo's team member {team_member_name} is doing. It is formatted in JSON, where the
+            'work' key in the JSON is a full description of the work they are currently doing.
             {{
                 "name": "{team_member_name}",
                 "work": "{contatenated_story_titles}"
             }}
-            Provide a summary of no more than 5 lines of what he or she is working on. 
+            Provide a summary of no more than 5 lines of what he or she is working on.
+            Avoid details that are too technical, ensure the summary is something that a 
+            non technical CEO or an executive can understand. 
         """
         messages = [
             {"role": "system", "content": prompt},
