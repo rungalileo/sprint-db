@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from api_router import ApiRouter
 import os
+import re
 import openai
 
 
@@ -206,9 +207,20 @@ class Utils:
     def get_llm_summary_per_member(self, stories_by_member, team_member_name):
         contatenated_story_titles = ""
         for story_id, story_title in zip(stories_by_member['ID'], stories_by_member['Story']):
-            story_title = story_title.split("###")[0]
+            story_title = "Summary: " + story_title.split("###")[0]
             contatenated_story_titles += story_title + "."
             # Get the full content of the story from the ID
+            story = self.r.get_story_by_id(story_id)
+            story['description'] = re.sub(r'\{.*?\}', '', story['description'])
+            story['description'] = re.sub(
+                r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '',
+                story['description'])
+            story['description'] = story['description'].replace('```', '')
+            story['description'] = story['description'].replace('\n', '').replace('\r', '')
+            contatenated_story_titles += "Details: " + story['description'] + "."
+
+        print("Work")
+        print(contatenated_story_titles)
 
         openai.api_key = self.openai_api_key
         prompt = f"""
@@ -217,8 +229,7 @@ class Utils:
                 "name": "{team_member_name}",
                 "work": "{contatenated_story_titles}"
             }}
-            Provide a summary of not more than 5 lines of what he or she is working on. 
-            Mention their names in the summary.
+            Provide a summary of no more than 5 lines of what he or she is working on. 
         """
         messages = [
             {"role": "system", "content": prompt},

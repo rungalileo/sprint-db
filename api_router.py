@@ -31,6 +31,7 @@ class ApiRouter:
         self._shortcut_token = '?token=' + _token
         self._get_milestones_url = '/v3/milestones'
         self._get_epics_url = '/v3/epics'
+        self._get_stories_url = '/v3/stories'
         self._get_iteration_url = '/v3/iterations'
         self._get_members_url = '/v3/members'
         self._get_workflows_url = '/v3/workflows'
@@ -132,6 +133,10 @@ class ApiRouter:
                             s['iteration_id'] is not None and sprint == self.get_iteration_name_from_id(
                                 s['iteration_id']) and not s.get('archived', '')]
         return stories_list
+
+    def get_story_by_id(self, story_id):
+        story = self.make_api_call(self._base_url + self._get_stories_url + "/{}".format(story_id))
+        return story
 
     def get_milestones(self, active=False):
         if len(self._all_milestones) == 0:
