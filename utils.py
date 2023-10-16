@@ -224,16 +224,16 @@ class Utils:
 
         openai.api_key = self.openai_api_key
         prompt = f"""
-            Galileo is the name of our company. It's a Machine Learning Data Intelligence tools company, focused on building
-            a platform to curate better data for NLP, Computer Vision and LLM (the product is called LLM Studio).
-            Galileo has 3 main teams - Platform, UI and ML.
-            The Platform team builds the backend API services called 'api' and 'runners' as well as a python client called
-            DataQuality often abbreviated as DQ. 
-            The ML team works on algorithms to find data errors and does experiments on DEP, Hallucinations, Tone, Toxicity,
-            PII detection and various other critical issues with ML data.
-            The UI team builds the React frontend for the tool (also referred to as the 'console').
+            Galileo is the name of our company. It's a Machine Learning Data Intelligence tools company, focused on 
+            building a platform to curate better data for NLP, Computer Vision and LLM (the product is called 
+            LLM Studio). Galileo has 3 main teams - Platform, UI and ML.
+            The Platform team builds the backend API services called 'api' and 'runners' as well as a python client 
+            named DataQuality often abbreviated as DQ.
+            The ML team works on algorithms to find data errors and does experiments on DEP 
+            (stands for data error potential), Hallucinations, Tone, Toxicity, PII detection and various other critical 
+            issues with ML data. The UI team builds the React frontend for the tool (also referred to as the 'console').
             The entire backend is primarily written in Python and the frontend is all React and Typescript.
-             
+
             Below is the work that Galileo's team member {team_member_name} is doing. It is formatted in JSON, where the
             'work' key in the JSON is a full description of the work they are currently doing.
             {{
