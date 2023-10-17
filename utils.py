@@ -207,21 +207,22 @@ class Utils:
     def get_llm_summary_per_member(self, stories_by_member, team_member_name):
         contatenated_story_titles = ""
         for story_id, story_title in zip(stories_by_member['ID'], stories_by_member['Story']):
-            story_title = "Summary: " + story_title.split("###")[0]
-            contatenated_story_titles += story_title + "."
             # Get the full content of the story from the ID
             story = self.r.get_story_by_id(story_id)
-            story['description'] = re.sub(r'\{.*?\}', '', story['description'])
-            story['description'] = re.sub(
-                r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '',
-                story['description'])
-            story['description'] = story['description'].replace('```', '')
-            story['description'] = story['description'].replace('\n', '').replace('\r', '')
-            contatenated_story_titles += "Details: " + story['description'] + "."
+            if not story['completed']:
+                story_title = "Summary: " + story_title.split("###")[0]
+                contatenated_story_titles += story_title + "."
+                story['description'] = re.sub(r'\{.*?\}', '', story['description'])
+                story['description'] = re.sub(
+                    r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '',
+                    story['description'])
+                story['description'] = story['description'].replace('```', '')
+                story['description'] = story['description'].replace('\n', '').replace('\r', '')
+                state = self.r.get_workflow(story['workflow_state_id'])
+                contatenated_story_titles += f"State: {state}, Details: {story['description']}."
 
         print("Work")
         print(contatenated_story_titles)
-
         openai.api_key = self.openai_api_key
         prompt = f"""
             Galileo is the name of our company. It's a Machine Learning Data Intelligence tools company, focused on 
@@ -233,6 +234,12 @@ class Utils:
             (stands for data error potential), Hallucinations, Tone, Toxicity, PII detection and various other critical 
             issues with ML data. The UI team builds the React frontend for the tool (also referred to as the 'console').
             The entire backend is primarily written in Python and the frontend is all React and Typescript.
+            
+            There are 4 states to any work item:
+            1. Ready of Development: This state means that this work item is ready to be worked on next.
+            2. In Development: This state means that this work item is actively being worked on.
+            2. Blocked: This state means that this work item is blocked on another team member.
+            3. Triage: This state means that this work item is next in line for execution.
 
             Below is the work that Galileo's team member {team_member_name} is doing. It is formatted in JSON, where the
             'work' key in the JSON is a full description of the work they are currently doing.
@@ -240,9 +247,11 @@ class Utils:
                 "name": "{team_member_name}",
                 "work": "{contatenated_story_titles}"
             }}
-            Provide a summary of no more than 5 lines of what he or she is working on.
+            Provide a concise summary (no more than 5 lines) of what they are working on, with a clear description of 
+            what they are actively working on, what they will work on next and what they are blocked on. Only talk about it
+            if there is a non-zero amount of work under that category.
             Avoid details that are too technical, ensure the summary is something that a 
-            non technical CEO or an executive can understand. If work is empty, say their work is not being tracked. 
+            CEO or an executive can understand. If work is empty, say their work is not being tracked. 
         """
         messages = [
             {"role": "system", "content": prompt},
