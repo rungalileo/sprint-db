@@ -2,7 +2,7 @@ import plost
 import streamlit as st
 import pandas as pd
 from api_router import ApiRouter
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Tuple
 from utils import Utils
 
@@ -266,7 +266,7 @@ class SprintDashboard:
                     utils.filter_non_archived(all_stories_in_sprint),
                     team_member_name.strip()
                 )
-                llm_member_summary = utils.get_llm_summary_per_member(stories_by_member, team_member_name)
+                llm_member_summary = utils.get_llm_summary_for_stories(stories_by_member, team_member_name)
                 st.write(llm_member_summary)
                 stories_by_member_df = pd.DataFrame(stories_by_member)
                 st.write(self.get_prettified_story_table(stories_by_member_df), unsafe_allow_html=True)
@@ -595,10 +595,13 @@ class SprintDashboard:
                 started_dates.append(None)
 
             if milestone['completed_at_override'] is not None:
-                sandbox_date = datetime.fromisoformat(milestone['completed_at_override'].replace('Z', '+00:00'))
+                dev_complete_date = datetime.fromisoformat(milestone['completed_at_override'].replace('Z', '+00:00'))
+                sandbox_date = dev_complete_date + timedelta(days=6)
+                post_deployment_fix_date = sandbox_date + timedelta(days=14)
+
                 sandbox_deployment_dates.append(sandbox_date.strftime('%b %-d'))
-                dev_complete_dates.append((utils.get_dev_complete_date(sandbox_date)).strftime('%b %-d'))
-                post_deployment_fix_dates.append((utils.get_post_deployment_date(sandbox_date)).strftime('%b %-d'))
+                dev_complete_dates.append(dev_complete_date.strftime('%b %-d'))
+                post_deployment_fix_dates.append(post_deployment_fix_date.strftime('%b %-d'))
                 days_to_target.append(
                     (sandbox_date.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).days + 1)
                 if started_date is not None:
