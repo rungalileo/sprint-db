@@ -326,6 +326,7 @@ class SprintDashboard:
                 st.markdown("### Active Milestones")
                 st.markdown("The <b>Days Remaining</b> below signifies the days to <b>launch to Sandbox</b>.", unsafe_allow_html=True)
                 df = pd.DataFrame(self.get_milestone_data_view(key_milestones))
+                df = df.sort_values(by='Dev Complete')
                 df = df.style.format({'Milestone': self.make_clickable,
                                       'Days Remaining': self.color_red_negative_completed})
                 table = df.to_html()
