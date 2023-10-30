@@ -196,8 +196,10 @@ class SprintDashboard:
             num_features = len(all_features)
             num_bugs = len(all_bugs)
             c1.metric("Total Stories", num_total)
-            c2.metric("Features %", round(num_features / num_total * 100), 1)
-            c3.metric("Bugs %", round(num_bugs / num_total * 100), 1)
+            feature_percent = round(num_features / num_total * 100) if num_total != 0 else 0
+            bugs_percent = round(num_bugs / num_total * 100) if num_total != 0 else 0
+            c2.metric("Features %", feature_percent, 1)
+            c3.metric("Bugs %", bugs_percent, 1)
             c4.metric("Features Closed", len(utils.filter_completed_and_in_review(all_features)))
             c5.metric("Bugs Squashed", len(utils.filter_completed_and_in_review(all_bugs)))
             st.markdown("""---""")
@@ -326,7 +328,9 @@ class SprintDashboard:
                 st.markdown("### Active Milestones")
                 st.markdown("The <b>Days Remaining</b> below signifies the days to <b>launch to Sandbox</b>.", unsafe_allow_html=True)
                 df = pd.DataFrame(self.get_milestone_data_view(key_milestones))
-                df = df.sort_values(by='Dev Complete', inplace=True)
+                df['Dev Complete Date'] = pd.to_datetime(df['Dev Complete Date'])
+                df.sort_values(by='Dev Complete Date', ascending=True, inplace=True)
+                df.drop(columns=['Dev Complete Date'], inplace=True)
                 df = df.style.format({'Milestone': self.make_clickable,
                                       'Days Remaining': self.color_red_negative_completed})
                 table = df.to_html()
@@ -521,6 +525,9 @@ class SprintDashboard:
                     f'in the {self.N_WEEKS_POST_DEPLOYMENT}-week phase of fixing bugs arising via customer usage.',
                     unsafe_allow_html=True)
         df = self.get_past_milestones(active_milestones, n_weeks=self.N_WEEKS_POST_DEPLOYMENT)
+        df['Dev Complete Date'] = pd.to_datetime(df['Dev Complete Date'])
+        df.sort_values(by='Dev Complete Date', ascending=True, inplace=True)
+        df.drop(columns=['Dev Complete Date'], inplace=True)
         df = df.style.format({'Milestone': self.make_clickable, 'Days Remaining': self.color_red_negative_completed})
         df_html = df.to_html()
         st.write(df_html, unsafe_allow_html=True)
@@ -535,6 +542,10 @@ class SprintDashboard:
         merged = df1.merge(df2, how='outer', indicator=True)
         # filter the rows that are only in df1
         filtered = merged[merged['_merge'] == 'left_only'][df1.columns]
+        filtered['Dev Complete Date'] = pd.to_datetime(filtered['Dev Complete Date'])
+        filtered.sort_values(by='Dev Complete Date', ascending=True, inplace=True)
+        filtered.drop(columns=['Dev Complete Date'], inplace=True)
+
         filtered = filtered.style.format({'Milestone': self.make_clickable, 'State': self.color_green_completed})
         filtered_html = filtered.to_html()
         st.write(filtered_html, unsafe_allow_html=True)
@@ -567,6 +578,7 @@ class SprintDashboard:
         milestone_names = []
         started_dates = []
         dev_complete_dates = []
+        dev_complete_str_dates = []
         sandbox_deployment_dates = []
         post_deployment_fix_dates = []
         num_epics = []
@@ -601,7 +613,8 @@ class SprintDashboard:
                 post_deployment_fix_date = sandbox_date + timedelta(days=14)
 
                 sandbox_deployment_dates.append(sandbox_date.strftime('%b %-d'))
-                dev_complete_dates.append(dev_complete_date.strftime('%b %-d'))
+                dev_complete_dates.append(dev_complete_date)
+                dev_complete_str_dates.append(dev_complete_date.strftime('%b %-d'))
                 post_deployment_fix_dates.append(post_deployment_fix_date.strftime('%b %-d'))
                 days_to_target.append(
                     (sandbox_date.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).days + 1)
@@ -622,14 +635,15 @@ class SprintDashboard:
         days_elapsed = [int(d) for d in days_elapsed]
         data = {
             'Milestone': milestone_names,
-            'Started At': started_dates,
-            'Dev Complete': dev_complete_dates,
+            'Started On': started_dates,
+            'Dev Complete Date': dev_complete_dates,
+            'Dev Complete': dev_complete_str_dates,
             'Sandbox Deploy': sandbox_deployment_dates,
             'Post Deploy Fixes': post_deployment_fix_dates,
             'Epics': num_epics,
             'Stories': num_stories,
             'Days Elapsed': days_elapsed,
-            'Days Remaining': days_to_target,
+            'Days To Sandbox': days_to_target,
             'Completed': problematic_completion_percent,
             'In Review': problematic_in_review_percent,
         }
